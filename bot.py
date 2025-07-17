@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
- Load credentials
+ # Load credentials
 api_key = os.getenv("API_KEY")
 api_secret = os.getenv("API_SECRET")
 access_token = os.getenv("ACCESS_TOKEN")
