@@ -1,63 +1,74 @@
-import tweepy
-import schedule
-import time
-import os
-from dotenv import load_dotenv
-import os
+# BMSK-X-BOT: Automated Twitter Curator Bot
 
+import os
+import random
+import time
+import schedule
+import openai
+import tweepy
+from datetime import datetime
+from dotenv import load_dotenv
+
+# --- Load environment variables ---
+load_dotenv()
+
+# --- Twitter API Setup ---
 api_key = os.getenv("TWITTER_API_KEY")
 api_secret = os.getenv("TWITTER_API_SECRET")
 access_token = os.getenv("TWITTER_ACCESS_TOKEN")
 access_token_secret = os.getenv("TWITTER_ACCESS_SECRET")
 
-print("API Key:", api_key)
-print("API Secret:", api_secret)
-print("Access Token:", access_token)
-print("Access Secret:", access_token_secret)
-
-import tweepy
-
-auth = tweepy.OAuth1UserHandler(
-    api_key,
-    api_secret,
-    access_token,
-    access_token_secret
-)
-
-api = tweepy.API(auth)
-print("Bot is running successfully.")
-
-load_dotenv()
- # Load credentials
-api_key = os.getenv("API_KEY")
-api_secret = os.getenv("API_SECRET")
-access_token = os.getenv("ACCESS_TOKEN")
-access_token_secret = os.getenv("ACCESS_TOKEN_SECRET")
-# Authenticate
 auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_token_secret)
-api = tweepy.API(auth)
+twitter = tweepy.API(auth)
 
-# Example tweet list for one project (INFINT)
-tweets = [
-    "How AI is transforming DeFi: INFINT leads the way.",
-    "Discover seamless on-chain experiences with INFINT.",
-    "The future of decentralized finance is intelligent. #INFINT"
-]
+# --- OpenAI API Setup ---
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Function to post a tweet
+# --- Projects and Configuration ---
+projects = {
+    "YEET": {"hashtag": "#YEET", "topics": ["memecoin utility", "culture", "on-chain trends"]},
+    "LOMBARD": {"hashtag": "#LOMBARD", "topics": ["real yield", "BTC yield", "defi risk"]},
+    "NEAR": {"hashtag": "#NEAR", "topics": ["chain abstraction", "open web", "developer UX"]},
+    "INFINT": {"hashtag": "#INFINT", "topics": ["AI x DeFi", "intelligent protocols", "automated liquidity"]}
+}
+
+# Rotate projects daily based on weekday
+project_keys = list(projects.keys())
+def get_today_project():
+    return project_keys[datetime.now().weekday() % len(project_keys)]
+
+# --- Generate a tweet ---
+def generate_tweet(project):
+    topic = random.choice(projects[project]['topics'])
+    hashtag = projects[project]['hashtag']
+    prompt = f"Write a professional, curated, educative tweet about {topic} in the {project} project. Use a smart tone and include {hashtag}. Limit to 270 characters."
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    tweet = response.choices[0].message.content.strip()
+    return tweet
+
+# --- Tweet Posting Logic ---
 def post_tweet():
-    tweet = tweets.pop(0)
-    api.update_status(tweet)
-    print(f"Tweeted: {tweet}")
-    tweets.append(tweet)  # rotate tweets
+    project = get_today_project()
+    tweet = generate_tweet(project)
+    try:
+        twitter.update_status(tweet)
+        print(f"Posted for {project}: {tweet}")
+    except Exception as e:
+        print(f"Error posting tweet: {e}")
 
-# Schedule tweets every 30 minutes
-schedule.every(30).minutes.do(post_tweet)
+# --- Schedule 100 tweets/day ---
+def schedule_tweets():
+    for i in range(100):
+        schedule.every(12).minutes.do(post_tweet)
 
-print("Bot started...")
+# --- Run Scheduler ---
+if __name__ == "__main__":
+    print("BMSK-X-BOT started...")
+    schedule_tweets()
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-# Main loop
-while True:
-    schedule.run_pending()
-    time.sleep(10)
-  
